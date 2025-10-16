@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 
-interface UseAppwriteOptions<T, P extends Record<string, string | number>> {
+interface UseAppwriteOptions<T, P extends Record<string, any>> {
   fn: (params: P) => Promise<T>;
   params?: P;
   skip?: boolean;
@@ -11,12 +11,12 @@ interface UseAppwriteReturn<T, P> {
   data: T | null;
   loading: boolean;
   error: string | null;
-  refetch: (newParams: P) => Promise<void>;
+  refetch: (newParams?: P) => Promise<void>;
 }
 
-export const useAppwrite = <T, P extends Record<string, string | number>>({
+export const useAppwrite = <T, P extends Record<string, any> = Record<string, any>>({
   fn,
-  params = {} as P,
+  params,
   skip = false,
 }: UseAppwriteOptions<T, P>): UseAppwriteReturn<T, P> => {
   const [data, setData] = useState<T | null>(null);
@@ -34,6 +34,7 @@ export const useAppwrite = <T, P extends Record<string, string | number>>({
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : "An unknown error occurred";
+        console.error("Appwrite Fetch Error:", errorMessage);
         setError(errorMessage);
         Alert.alert("Error", errorMessage);
       } finally {
@@ -44,12 +45,17 @@ export const useAppwrite = <T, P extends Record<string, string | number>>({
   );
 
   useEffect(() => {
-    if (!skip) {
+    if (!skip && params) {
       fetchData(params);
     }
-  }, []);
+  }, [skip, params, fetchData]); // ✅ add dependencies properly
 
-  const refetch = async (newParams: P) => await fetchData(newParams);
+  const refetch = useCallback(
+    async (newParams?: P) => {
+      await fetchData(newParams ?? (params as P));
+    },
+    [fetchData, params]
+  );
 
   return { data, loading, error, refetch };
 };
